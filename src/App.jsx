@@ -24,7 +24,6 @@ function App() {
       email,
       password,
     });
-
     if (error) alert(error.message);
     else window.location.reload();
   }
@@ -35,7 +34,6 @@ function App() {
       email,
       password,
     });
-
     if (error) alert(error.message);
     else alert("Signup successful! Now login.");
   }
@@ -47,7 +45,7 @@ function App() {
     window.location.reload();
   }
 
-  // 📊 Fetch scores (ONLY current user)
+  // 📊 Fetch scores (latest first)
   async function fetchScores() {
     if (!user) return;
 
@@ -55,7 +53,7 @@ function App() {
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("id", { ascending: false }); // ✅ latest first
 
     setScores(data || []);
   }
@@ -64,13 +62,14 @@ function App() {
     fetchScores();
   }, [user]);
 
-  // ➕ Add Score
+  // ➕ Add Score (FINAL CORRECT LOGIC)
   async function handleAddScore() {
     if (!user) {
       alert("Please login first");
       return;
     }
 
+    // ✅ validation
     if (!score || !date) {
       alert("Enter score and date");
       return;
@@ -81,7 +80,7 @@ function App() {
       return;
     }
 
-    // ❌ Prevent duplicate date
+    // ❌ duplicate date check
     const { data: sameDate } = await supabase
       .from("scores")
       .select("*")
@@ -93,14 +92,14 @@ function App() {
       return;
     }
 
-    // 📊 Get existing
+    // 📊 get existing sorted oldest first
     const { data: existing } = await supabase
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
+      .order("id", { ascending: true }); // ✅ oldest first
 
-    // 🧹 Keep only last 5
+    // 🧹 delete oldest if already 5
     if (existing && existing.length >= 5) {
       await supabase
         .from("scores")
@@ -108,6 +107,7 @@ function App() {
         .eq("id", existing[0].id);
     }
 
+    // ➕ insert new score
     await supabase.from("scores").insert([
       {
         user_id: user.id,
@@ -142,7 +142,6 @@ function App() {
       >
         <h1 style={{ textAlign: "center" }}>⛳ Golf Dashboard</h1>
 
-        {/* Image */}
         <img
           src="https://images.unsplash.com/photo-1599058917212-d750089bc07e"
           alt="golf"
@@ -174,17 +173,16 @@ function App() {
               onChange={(e) => setEmail(e.target.value)}
               style={{ width: "100%", marginBottom: "10px" }}
             />
+
             <input
               type="password"
               placeholder="Password"
               onChange={(e) => setPassword(e.target.value)}
               style={{ width: "100%", marginBottom: "10px" }}
             />
+
             <button onClick={handleLogin}>Login</button>
-            <button
-              onClick={handleSignup}
-              style={{ marginLeft: "10px" }}
-            >
+            <button onClick={handleSignup} style={{ marginLeft: "10px" }}>
               Sign Up
             </button>
           </div>
@@ -193,7 +191,7 @@ function App() {
         <hr />
 
         {/* SCORE */}
-        <h2>Add Score</h2>
+        <h2>Add Golf Score</h2>
 
         <input
           type="number"
