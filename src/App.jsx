@@ -9,6 +9,10 @@ function App() {
   const [date, setDate] = useState("");
   const [scores, setScores] = useState([]);
 
+  // Charity + subscription
+  const [charity, setCharity] = useState("Save Children");
+  const [percentage, setPercentage] = useState(10);
+
   // 🔐 Get current user
   useEffect(() => {
     const getUser = async () => {
@@ -53,7 +57,7 @@ function App() {
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("id", { ascending: false }); // ✅ latest first
+      .order("id", { ascending: false });
 
     setScores(data || []);
   }
@@ -62,14 +66,13 @@ function App() {
     fetchScores();
   }, [user]);
 
-  // ➕ Add Score (FINAL CORRECT LOGIC)
+  // ➕ Add Score
   async function handleAddScore() {
     if (!user) {
       alert("Please login first");
       return;
     }
 
-    // ✅ validation
     if (!score || !date) {
       alert("Enter score and date");
       return;
@@ -80,7 +83,7 @@ function App() {
       return;
     }
 
-    // ❌ duplicate date check
+    // Prevent duplicate date
     const { data: sameDate } = await supabase
       .from("scores")
       .select("*")
@@ -92,14 +95,14 @@ function App() {
       return;
     }
 
-    // 📊 get existing sorted oldest first
+    // Get existing
     const { data: existing } = await supabase
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("id", { ascending: true }); // ✅ oldest first
+      .order("id", { ascending: true });
 
-    // 🧹 delete oldest if already 5
+    // Keep only last 5
     if (existing && existing.length >= 5) {
       await supabase
         .from("scores")
@@ -107,7 +110,6 @@ function App() {
         .eq("id", existing[0].id);
     }
 
-    // ➕ insert new score
     await supabase.from("scores").insert([
       {
         user_id: user.id,
@@ -187,6 +189,43 @@ function App() {
             </button>
           </div>
         )}
+
+        <hr />
+
+        {/* SUBSCRIPTION */}
+        <h2>Subscription</h2>
+        <p>Status: Active</p>
+        <p>Plan: Monthly</p>
+        <p>Next Billing: 30 April 2026</p>
+        <p>Contribution: {percentage}% to charity</p>
+
+        <hr />
+
+        {/* CHARITY */}
+        <h2>Select Charity</h2>
+
+        <select
+          value={charity}
+          onChange={(e) => setCharity(e.target.value)}
+          style={{ width: "100%", marginBottom: "10px" }}
+        >
+          <option>Save Children</option>
+          <option>Green Earth</option>
+          <option>Health Aid</option>
+        </select>
+
+        <input
+          type="number"
+          min="10"
+          max="100"
+          value={percentage}
+          onChange={(e) => setPercentage(e.target.value)}
+          style={{ width: "100%", marginBottom: "10px" }}
+        />
+
+        <p>
+          You are contributing <b>{percentage}%</b> to <b>{charity}</b>
+        </p>
 
         <hr />
 
