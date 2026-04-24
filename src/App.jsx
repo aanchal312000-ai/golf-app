@@ -47,7 +47,7 @@ function App() {
     window.location.reload();
   }
 
-  // 📊 Fetch scores
+  // 📊 Fetch scores (ONLY current user)
   async function fetchScores() {
     if (!user) return;
 
@@ -64,16 +64,15 @@ function App() {
     fetchScores();
   }, [user]);
 
-  // ➕ Add Score (FINAL CORRECT LOGIC)
+  // ➕ Add Score
   async function handleAddScore() {
     if (!user) {
       alert("Please login first");
       return;
     }
 
-    // ✅ VALIDATION
     if (!score || !date) {
-      alert("Please enter score and date");
+      alert("Enter score and date");
       return;
     }
 
@@ -82,7 +81,7 @@ function App() {
       return;
     }
 
-    // ❌ Duplicate date check
+    // ❌ Prevent duplicate date
     const { data: sameDate } = await supabase
       .from("scores")
       .select("*")
@@ -94,7 +93,7 @@ function App() {
       return;
     }
 
-    // 📊 Existing scores
+    // 📊 Get existing
     const { data: existing } = await supabase
       .from("scores")
       .select("*")
@@ -109,19 +108,13 @@ function App() {
         .eq("id", existing[0].id);
     }
 
-    // ➕ Insert new
-    const { error } = await supabase.from("scores").insert([
+    await supabase.from("scores").insert([
       {
         user_id: user.id,
         score: Number(score),
         date: date,
       },
     ]);
-
-    if (error) {
-      alert("Error adding score");
-      return;
-    }
 
     setScore("");
     setDate("");
@@ -131,105 +124,121 @@ function App() {
   return (
     <div
       style={{
-        padding: "30px",
-        maxWidth: "600px",
-        margin: "auto",
         fontFamily: "Arial",
+        background: "#f4f7f6",
+        minHeight: "100vh",
+        padding: "20px",
       }}
     >
-      <h1>Golf Dashboard</h1>
-      <p>
-        Track your golf scores, support charities, and participate in rewards.
-      </p>
+      <div
+        style={{
+          maxWidth: "600px",
+          margin: "auto",
+          background: "white",
+          padding: "20px",
+          borderRadius: "10px",
+          boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+        }}
+      >
+        <h1 style={{ textAlign: "center" }}>⛳ Golf Dashboard</h1>
 
-      {/* LOGIN */}
-      <h2>Login</h2>
+        {/* Image */}
+        <img
+          src="https://images.unsplash.com/photo-1599058917212-d750089bc07e"
+          alt="golf"
+          style={{
+            width: "100%",
+            borderRadius: "10px",
+            marginBottom: "20px",
+          }}
+        />
 
-      {user ? (
-        <div>
-          <p>Logged in: {user.email}</p>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      ) : (
-        <div>
-          <input
-            type="email"
-            placeholder="Enter email"
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <br /><br />
+        <p style={{ textAlign: "center" }}>
+          Track scores • Support charities • Win rewards
+        </p>
 
-          <input
-            type="password"
-            placeholder="Enter password"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <br /><br />
+        <hr />
 
-          <button onClick={handleLogin}>Login</button>
-          <button onClick={handleSignup} style={{ marginLeft: "10px" }}>
-            Sign Up
-          </button>
-        </div>
-      )}
+        {/* LOGIN */}
+        <h2>Account</h2>
 
-      <hr />
+        {user ? (
+          <div>
+            <p>Logged in: {user.email}</p>
+            <button onClick={handleLogout}>Logout</button>
+          </div>
+        ) : (
+          <div>
+            <input
+              placeholder="Email"
+              onChange={(e) => setEmail(e.target.value)}
+              style={{ width: "100%", marginBottom: "10px" }}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ width: "100%", marginBottom: "10px" }}
+            />
+            <button onClick={handleLogin}>Login</button>
+            <button
+              onClick={handleSignup}
+              style={{ marginLeft: "10px" }}
+            >
+              Sign Up
+            </button>
+          </div>
+        )}
 
-      {/* SUBSCRIPTION */}
-      <h2>Subscription Status</h2>
-      <p>Status: Active</p>
-      <p>Plan: Monthly Subscription</p>
-      <p>Renewal Date: 30 April 2026</p>
+        <hr />
 
-      <hr />
+        {/* SCORE */}
+        <h2>Add Score</h2>
 
-      {/* CHARITY */}
-      <h2>Charity</h2>
-      <p>Save Children - Helping kids</p>
-      <p>Green Earth - Environment support</p>
-      <p>Health Aid - Medical help</p>
+        <input
+          type="number"
+          min="1"
+          max="45"
+          placeholder="Score (1-45)"
+          value={score}
+          onChange={(e) => setScore(e.target.value)}
+          style={{ width: "100%", marginBottom: "10px" }}
+        />
 
-      <hr />
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={{ width: "100%", marginBottom: "10px" }}
+        />
 
-      {/* SCORE ENTRY */}
-      <h2>Add Golf Score</h2>
+        <button onClick={handleAddScore}>Add Score</button>
 
-      <input
-        type="number"
-        min="1"
-        max="45"
-        placeholder="Score (1-45)"
-        value={score}
-        onChange={(e) => setScore(e.target.value)}
-      />
+        <hr />
 
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-      />
+        {/* SCORES */}
+        <h2>Your Last 5 Scores</h2>
 
-      <button onClick={handleAddScore}>Add Score</button>
+        {scores.length === 0 && <p>No scores yet</p>}
 
-      <hr />
-
-      {/* SCORES */}
-      <h2>Last 5 Scores</h2>
-
-      {scores.length === 0 && <p>No scores added yet</p>}
-
-      {scores.map((s) => (
-        <div key={s.id}>
-          <p>
+        {scores.map((s) => (
+          <div
+            key={s.id}
+            style={{
+              background: "#f0f0f0",
+              padding: "8px",
+              marginBottom: "5px",
+              borderRadius: "5px",
+            }}
+          >
             Score: {s.score} | Date: {s.date}
-          </p>
-        </div>
-      ))}
+          </div>
+        ))}
 
-      <hr />
+        <hr />
 
-      {/* ADMIN */}
-      <a href="/admin">Go to Admin Dashboard</a>
+        <a href="/admin">Go to Admin Dashboard</a>
+      </div>
     </div>
   );
 }
