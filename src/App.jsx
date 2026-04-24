@@ -55,7 +55,7 @@ function App() {
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("date", { ascending: false });
+      .order("created_at", { ascending: false });
 
     setScores(data || []);
   }
@@ -98,7 +98,7 @@ function App() {
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("date", { ascending: true });
+      .order("created_at", { ascending: true });
 
     // 🧹 Keep only last 5
     if (existing && existing.length >= 5) {
