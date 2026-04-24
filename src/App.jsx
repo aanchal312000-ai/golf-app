@@ -99,10 +99,15 @@ export default function App() {
         <h1 style={{ textAlign: "center" }}>⛳ Golf Dashboard</h1>
 
         <img
-          src="https://images.unsplash.com/photo-1599058917212-d750089bc07e"
-          alt="golf"
-          style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }}
-        />
+          
+  src="https://images.unsplash.com/photo-1500930287596-c1ecaa373bb2"
+  alt="golf"
+  style={{
+    width: "100%",
+    borderRadius: "10px",
+    marginBottom: "20px",
+  }}
+/>
 
         <p style={{ textAlign: "center" }}>
           Track scores • Support charities • Win rewards
