@@ -64,19 +64,44 @@ function App() {
     fetchScores();
   }, [user]);
 
-  // ➕ Add Score (last 5 logic)
+  // ➕ Add Score (FINAL CORRECT LOGIC)
   async function handleAddScore() {
     if (!user) {
       alert("Please login first");
       return;
     }
 
+    // ✅ VALIDATION
+    if (!score || !date) {
+      alert("Please enter score and date");
+      return;
+    }
+
+    if (Number(score) < 1 || Number(score) > 45) {
+      alert("Score must be between 1 and 45");
+      return;
+    }
+
+    // ❌ Duplicate date check
+    const { data: sameDate } = await supabase
+      .from("scores")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("date", date);
+
+    if (sameDate && sameDate.length > 0) {
+      alert("Score already exists for this date");
+      return;
+    }
+
+    // 📊 Existing scores
     const { data: existing } = await supabase
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
       .order("date", { ascending: true });
 
+    // 🧹 Keep only last 5
     if (existing && existing.length >= 5) {
       await supabase
         .from("scores")
@@ -84,13 +109,19 @@ function App() {
         .eq("id", existing[0].id);
     }
 
-    await supabase.from("scores").insert([
+    // ➕ Insert new
+    const { error } = await supabase.from("scores").insert([
       {
         user_id: user.id,
         score: Number(score),
         date: date,
       },
     ]);
+
+    if (error) {
+      alert("Error adding score");
+      return;
+    }
 
     setScore("");
     setDate("");
@@ -112,7 +143,7 @@ function App() {
       </p>
 
       {/* LOGIN */}
-      <h2>Login Status</h2>
+      <h2>Login</h2>
 
       {user ? (
         <div>
@@ -127,6 +158,7 @@ function App() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <br /><br />
+
           <input
             type="password"
             placeholder="Enter password"
@@ -152,7 +184,7 @@ function App() {
       <hr />
 
       {/* CHARITY */}
-      <h2>Charity (Sample)</h2>
+      <h2>Charity</h2>
       <p>Save Children - Helping kids</p>
       <p>Green Earth - Environment support</p>
       <p>Health Aid - Medical help</p>
@@ -163,6 +195,9 @@ function App() {
       <h2>Add Golf Score</h2>
 
       <input
+        type="number"
+        min="1"
+        max="45"
         placeholder="Score (1-45)"
         value={score}
         onChange={(e) => setScore(e.target.value)}
