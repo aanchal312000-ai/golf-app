@@ -3,6 +3,8 @@ import { supabase } from "./supabase";
 
 function App() {
   const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [score, setScore] = useState("");
   const [date, setDate] = useState("");
   const [scores, setScores] = useState([]);
@@ -13,9 +15,30 @@ function App() {
       const { data } = await supabase.auth.getUser();
       setUser(data?.user || null);
     };
-
     getUser();
   }, []);
+
+  // 🔐 Login
+  async function handleLogin() {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      alert(error.message);
+    } else {
+      alert("Login successful");
+      window.location.reload();
+    }
+  }
+
+  // 🔓 Logout
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setUser(null);
+    window.location.reload();
+  }
 
   // 📊 Fetch scores
   async function fetchScores() {
@@ -34,21 +57,19 @@ function App() {
     fetchScores();
   }, [user]);
 
-  // ➕ Add Score (LAST 5 LOGIC IMPLEMENTED)
+  // ➕ Add Score (LAST 5 LOGIC)
   async function handleAddScore() {
     if (!user) {
       alert("Please login first");
       return;
     }
 
-    // get existing scores
     const { data: existing } = await supabase
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
       .order("date", { ascending: true });
 
-    // if 5 already exist → delete oldest
     if (existing && existing.length >= 5) {
       await supabase
         .from("scores")
@@ -56,7 +77,6 @@ function App() {
         .eq("id", existing[0].id);
     }
 
-    // insert new score
     await supabase.from("scores").insert([
       {
         user_id: user.id,
@@ -74,13 +94,41 @@ function App() {
     <div style={{ padding: "30px" }}>
       <h1>Golf Dashboard</h1>
 
-      {/* LOGIN INFO */}
+      {/* LOGIN */}
       <h2>Login Status</h2>
-      <p>{user ? `Logged in: ${user.email}` : "Not logged in"}</p>
+
+      {user ? (
+        <div>
+          <p>Logged in: {user.email}</p>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
+      ) : (
+        <div>
+          <p>Not logged in</p>
+
+          <input
+            type="email"
+            placeholder="Enter email"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <br /><br />
+
+          <input
+            type="password"
+            placeholder="Enter password"
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <br /><br />
+
+          <button onClick={handleLogin}>Login</button>
+        </div>
+      )}
 
       <hr />
 
-      {/* SUBSCRIPTION (STATIC FOR NOW) */}
+      {/* SUBSCRIPTION */}
       <h2>Subscription Status</h2>
       <p>Status: Active</p>
       <p>Plan: Monthly Subscription</p>
@@ -107,7 +155,7 @@ function App() {
 
       <hr />
 
-      {/* LAST 5 SCORES */}
+      {/* SCORES */}
       <h2>Last 5 Scores</h2>
 
       {scores.map((s) => (
