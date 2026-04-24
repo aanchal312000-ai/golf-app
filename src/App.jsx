@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
-function App() {
+export default function App() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -9,118 +9,111 @@ function App() {
   const [date, setDate] = useState("");
   const [scores, setScores] = useState([]);
 
-  // Charity + subscription
+  // Charity + subscription (UI-level)
   const [charity, setCharity] = useState("Save Children");
   const [percentage, setPercentage] = useState(10);
 
-  // 🔐 Get current user
+  // 🔐 get current user
   useEffect(() => {
-    const getUser = async () => {
+    (async () => {
       const { data } = await supabase.auth.getUser();
       setUser(data?.user || null);
-    };
-    getUser();
+    })();
   }, []);
 
-  // 🔐 Login
+  // 🔐 auth handlers
   async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) alert(error.message);
-    else window.location.reload();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return alert(error.message);
+    const { data } = await supabase.auth.getUser();
+    setUser(data?.user || null);
   }
 
-  // 🆕 Signup
   async function handleSignup() {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) alert(error.message);
-    else alert("Signup successful! Now login.");
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) return alert(error.message);
+    alert("Signup successful! Now login.");
   }
 
-  // 🔓 Logout
   async function handleLogout() {
     await supabase.auth.signOut();
     setUser(null);
-    window.location.reload();
+    setScores([]);
   }
 
-  // 📊 Fetch scores (latest first)
+  // 📊 fetch scores (latest first) — LIMIT to 5 at DB + UI
   async function fetchScores() {
     if (!user) return;
-
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
-      .order("id", { ascending: false });
+      .order("id", { ascending: false })
+      .limit(5); // DB-level safety
 
-    setScores(data || []);
+    if (error) return alert("Error fetching scores");
+    setScores((data || []).slice(0, 5)); // UI safety
   }
 
   useEffect(() => {
     fetchScores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // ➕ Add Score
+  // ➕ add score (strict, race-safe)
   async function handleAddScore() {
-    if (!user) {
-      alert("Please login first");
-      return;
+    if (!user) return alert("Please login first");
+
+    // validations
+    if (!score || !date) return alert("Enter score and date");
+    const n = Number(score);
+    if (Number.isNaN(n) || n < 1 || n > 45) {
+      return alert("Score must be between 1 and 45");
     }
 
-    if (!score || !date) {
-      alert("Enter score and date");
-      return;
-    }
-
-    if (Number(score) < 1 || Number(score) > 45) {
-      alert("Score must be between 1 and 45");
-      return;
-    }
-
-    // Prevent duplicate date
-    const { data: sameDate } = await supabase
+    // prevent duplicate date per user
+    const { data: sameDate, error: dupErr } = await supabase
       .from("scores")
-      .select("*")
+      .select("id")
       .eq("user_id", user.id)
       .eq("date", date);
 
+    if (dupErr) return alert("Error checking duplicate");
     if (sameDate && sameDate.length > 0) {
-      alert("Score already exists for this date");
-      return;
+      return alert("Score already exists for this date");
     }
 
-    // Get existing
-    const { data: existing } = await supabase
+    // get current count (oldest first by id)
+    const { data: existing, error: existErr } = await supabase
       .from("scores")
-      .select("*")
+      .select("id")
       .eq("user_id", user.id)
       .order("id", { ascending: true });
 
-    // Keep only last 5
+    if (existErr) return alert("Error loading existing scores");
+
+    // if already 5, delete oldest FIRST and await it
     if (existing && existing.length >= 5) {
-      await supabase
+      const oldestId = existing[0].id;
+      const { error: delErr } = await supabase
         .from("scores")
         .delete()
-        .eq("id", existing[0].id);
+        .eq("id", oldestId);
+      if (delErr) return alert("Error deleting oldest score");
     }
 
-    await supabase.from("scores").insert([
-      {
-        user_id: user.id,
-        score: Number(score),
-        date: date,
-      },
+    // now insert
+    const { error: insErr } = await supabase.from("scores").insert([
+      { user_id: user.id, score: n, date },
     ]);
+    if (insErr) return alert("Error adding score");
 
+    // refresh from DB (authoritative)
+    await fetchScores();
+
+    // reset inputs
     setScore("");
     setDate("");
-    fetchScores();
   }
 
   return (
@@ -147,11 +140,7 @@ function App() {
         <img
           src="https://images.unsplash.com/photo-1599058917212-d750089bc07e"
           alt="golf"
-          style={{
-            width: "100%",
-            borderRadius: "10px",
-            marginBottom: "20px",
-          }}
+          style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }}
         />
 
         <p style={{ textAlign: "center" }}>
@@ -160,9 +149,8 @@ function App() {
 
         <hr />
 
-        {/* LOGIN */}
+        {/* ACCOUNT */}
         <h2>Account</h2>
-
         {user ? (
           <div>
             <p>Logged in: {user.email}</p>
@@ -175,14 +163,12 @@ function App() {
               onChange={(e) => setEmail(e.target.value)}
               style={{ width: "100%", marginBottom: "10px" }}
             />
-
             <input
               type="password"
               placeholder="Password"
               onChange={(e) => setPassword(e.target.value)}
               style={{ width: "100%", marginBottom: "10px" }}
             />
-
             <button onClick={handleLogin}>Login</button>
             <button onClick={handleSignup} style={{ marginLeft: "10px" }}>
               Sign Up
@@ -203,7 +189,6 @@ function App() {
 
         {/* CHARITY */}
         <h2>Select Charity</h2>
-
         <select
           value={charity}
           onChange={(e) => setCharity(e.target.value)}
@@ -229,9 +214,8 @@ function App() {
 
         <hr />
 
-        {/* SCORE */}
+        {/* ADD SCORE */}
         <h2>Add Golf Score</h2>
-
         <input
           type="number"
           min="1"
@@ -241,23 +225,19 @@ function App() {
           onChange={(e) => setScore(e.target.value)}
           style={{ width: "100%", marginBottom: "10px" }}
         />
-
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
           style={{ width: "100%", marginBottom: "10px" }}
         />
-
         <button onClick={handleAddScore}>Add Score</button>
 
         <hr />
 
         {/* SCORES */}
         <h2>Your Last 5 Scores</h2>
-
         {scores.length === 0 && <p>No scores yet</p>}
-
         {scores.map((s) => (
           <div
             key={s.id}
@@ -273,11 +253,8 @@ function App() {
         ))}
 
         <hr />
-
         <a href="/admin">Go to Admin Dashboard</a>
       </div>
     </div>
   );
 }
-
-export default App;
