@@ -25,12 +25,19 @@ function App() {
       password,
     });
 
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Login successful");
-      window.location.reload();
-    }
+    if (error) alert(error.message);
+    else window.location.reload();
+  }
+
+  // 🆕 Signup
+  async function handleSignup() {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) alert(error.message);
+    else alert("Signup successful! Now login.");
   }
 
   // 🔓 Logout
@@ -57,7 +64,7 @@ function App() {
     fetchScores();
   }, [user]);
 
-  // ➕ Add Score (LAST 5 LOGIC)
+  // ➕ Add Score (last 5 logic)
   async function handleAddScore() {
     if (!user) {
       alert("Please login first");
@@ -91,8 +98,18 @@ function App() {
   }
 
   return (
-    <div style={{ padding: "30px" }}>
+    <div
+      style={{
+        padding: "30px",
+        maxWidth: "600px",
+        margin: "auto",
+        fontFamily: "Arial",
+      }}
+    >
       <h1>Golf Dashboard</h1>
+      <p>
+        Track your golf scores, support charities, and participate in rewards.
+      </p>
 
       {/* LOGIN */}
       <h2>Login Status</h2>
@@ -104,25 +121,23 @@ function App() {
         </div>
       ) : (
         <div>
-          <p>Not logged in</p>
-
           <input
             type="email"
             placeholder="Enter email"
             onChange={(e) => setEmail(e.target.value)}
           />
-
           <br /><br />
-
           <input
             type="password"
             placeholder="Enter password"
             onChange={(e) => setPassword(e.target.value)}
           />
-
           <br /><br />
 
           <button onClick={handleLogin}>Login</button>
+          <button onClick={handleSignup} style={{ marginLeft: "10px" }}>
+            Sign Up
+          </button>
         </div>
       )}
 
@@ -133,6 +148,14 @@ function App() {
       <p>Status: Active</p>
       <p>Plan: Monthly Subscription</p>
       <p>Renewal Date: 30 April 2026</p>
+
+      <hr />
+
+      {/* CHARITY */}
+      <h2>Charity (Sample)</h2>
+      <p>Save Children - Helping kids</p>
+      <p>Green Earth - Environment support</p>
+      <p>Health Aid - Medical help</p>
 
       <hr />
 
@@ -158,6 +181,8 @@ function App() {
       {/* SCORES */}
       <h2>Last 5 Scores</h2>
 
+      {scores.length === 0 && <p>No scores added yet</p>}
+
       {scores.map((s) => (
         <div key={s.id}>
           <p>
@@ -168,7 +193,7 @@ function App() {
 
       <hr />
 
-      {/* ADMIN LINK */}
+      {/* ADMIN */}
       <a href="/admin">Go to Admin Dashboard</a>
     </div>
   );
