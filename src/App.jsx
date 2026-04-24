@@ -13,7 +13,6 @@ export default function App() {
   const [charity, setCharity] = useState("Save Children");
   const [percentage, setPercentage] = useState(10);
 
-  // 🔐 get current user
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
@@ -21,7 +20,6 @@ export default function App() {
     })();
   }, []);
 
-  // 🔐 auth handlers
   async function handleLogin() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return alert(error.message);
@@ -41,100 +39,63 @@ export default function App() {
     setScores([]);
   }
 
-  // 📊 fetch scores (latest first) — LIMIT to 5 at DB + UI
   async function fetchScores() {
     if (!user) return;
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("scores")
       .select("*")
       .eq("user_id", user.id)
       .order("id", { ascending: false })
-      .limit(5); // DB-level safety
+      .limit(5);
 
-    if (error) return alert("Error fetching scores");
-    setScores((data || []).slice(0, 5)); // UI safety
+    setScores((data || []).slice(0, 5));
   }
 
   useEffect(() => {
     fetchScores();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // ➕ add score (strict, race-safe)
   async function handleAddScore() {
     if (!user) return alert("Please login first");
 
-    // validations
     if (!score || !date) return alert("Enter score and date");
-    const n = Number(score);
-    if (Number.isNaN(n) || n < 1 || n > 45) {
-      return alert("Score must be between 1 and 45");
-    }
 
-    // prevent duplicate date per user
-    const { data: sameDate, error: dupErr } = await supabase
+    const n = Number(score);
+    if (n < 1 || n > 45) return alert("Score must be between 1 and 45");
+
+    const { data: sameDate } = await supabase
       .from("scores")
       .select("id")
       .eq("user_id", user.id)
       .eq("date", date);
 
-    if (dupErr) return alert("Error checking duplicate");
     if (sameDate && sameDate.length > 0) {
       return alert("Score already exists for this date");
     }
 
-    // get current count (oldest first by id)
-    const { data: existing, error: existErr } = await supabase
+    const { data: existing } = await supabase
       .from("scores")
       .select("id")
       .eq("user_id", user.id)
       .order("id", { ascending: true });
 
-    if (existErr) return alert("Error loading existing scores");
-
-    // if already 5, delete oldest FIRST and await it
     if (existing && existing.length >= 5) {
-      const oldestId = existing[0].id;
-      const { error: delErr } = await supabase
-        .from("scores")
-        .delete()
-        .eq("id", oldestId);
-      if (delErr) return alert("Error deleting oldest score");
+      await supabase.from("scores").delete().eq("id", existing[0].id);
     }
 
-    // now insert
-    const { error: insErr } = await supabase.from("scores").insert([
+    await supabase.from("scores").insert([
       { user_id: user.id, score: n, date },
     ]);
-    if (insErr) return alert("Error adding score");
 
-    // refresh from DB (authoritative)
     await fetchScores();
-
-    // reset inputs
     setScore("");
     setDate("");
   }
 
   return (
-    <div
-      style={{
-        fontFamily: "Arial",
-        background: "#f4f7f6",
-        minHeight: "100vh",
-        padding: "20px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "600px",
-          margin: "auto",
-          background: "white",
-          padding: "20px",
-          borderRadius: "10px",
-          boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-        }}
-      >
+    <div style={{ fontFamily: "Arial", background: "#f4f7f6", minHeight: "100vh", padding: "20px" }}>
+      <div style={{ maxWidth: "600px", margin: "auto", background: "white", padding: "20px", borderRadius: "10px" }}>
+
         <h1 style={{ textAlign: "center" }}>⛳ Golf Dashboard</h1>
 
         <img
@@ -158,21 +119,10 @@ export default function App() {
           </div>
         ) : (
           <div>
-            <input
-              placeholder="Email"
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: "100%", marginBottom: "10px" }}
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ width: "100%", marginBottom: "10px" }}
-            />
+            <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", marginBottom: "10px" }} />
+            <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", marginBottom: "10px" }} />
             <button onClick={handleLogin}>Login</button>
-            <button onClick={handleSignup} style={{ marginLeft: "10px" }}>
-              Sign Up
-            </button>
+            <button onClick={handleSignup} style={{ marginLeft: "10px" }}>Sign Up</button>
           </div>
         )}
 
@@ -187,13 +137,17 @@ export default function App() {
 
         <hr />
 
+        {/* PAYMENT (NEW) */}
+        <h2>Payment (Demo)</h2>
+        <p>Subscription Fee: ₹499/month</p>
+        <p>Status: Paid</p>
+        <button disabled>Pay Now (Demo)</button>
+
+        <hr />
+
         {/* CHARITY */}
         <h2>Select Charity</h2>
-        <select
-          value={charity}
-          onChange={(e) => setCharity(e.target.value)}
-          style={{ width: "100%", marginBottom: "10px" }}
-        >
+        <select value={charity} onChange={(e) => setCharity(e.target.value)} style={{ width: "100%", marginBottom: "10px" }}>
           <option>Save Children</option>
           <option>Green Earth</option>
           <option>Health Aid</option>
@@ -214,7 +168,16 @@ export default function App() {
 
         <hr />
 
-        {/* ADD SCORE */}
+        {/* LOTTERY / DRAW (NEW) */}
+        <h2>Monthly Draw</h2>
+        <p>Next Draw Date: 30 April 2026</p>
+        <p>Status: Upcoming</p>
+        <p>Winners will be selected randomly from eligible users.</p>
+        <button disabled>Run Draw (Admin Only)</button>
+
+        <hr />
+
+        {/* SCORE */}
         <h2>Add Golf Score</h2>
         <input
           type="number"
@@ -239,15 +202,7 @@ export default function App() {
         <h2>Your Last 5 Scores</h2>
         {scores.length === 0 && <p>No scores yet</p>}
         {scores.map((s) => (
-          <div
-            key={s.id}
-            style={{
-              background: "#f0f0f0",
-              padding: "8px",
-              marginBottom: "5px",
-              borderRadius: "5px",
-            }}
-          >
+          <div key={s.id} style={{ background: "#f0f0f0", padding: "8px", marginBottom: "5px", borderRadius: "5px" }}>
             Score: {s.score} | Date: {s.date}
           </div>
         ))}
